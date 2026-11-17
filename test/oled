@@ -1,0 +1,23 @@
+## 测试OLED
+
+#include <Arduino.h>
+#include <U8g2lib.h>
+#include <Wire.h>
+
+// SSD1306 驱动，硬件 I2C，SCL=6, SDA=5
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 6, /* data=*/ 5);
+
+void setup() {
+  u8g2.begin();
+  u8g2.enableUTF8Print();        // 关键：开启 UTF-8 打印模式，才能显示中文和特殊符号[reference:5]
+
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_wqy12_t_gb2312); // 使用支持中文的字体[reference:6]
+  u8g2.setCursor(0, 20);
+  u8g2.print("晚上好");          // 现在可以正常显示中文了
+  u8g2.setCursor(0, 45);
+  u8g2.print("(●'◡'●)");         // 特殊符号也能正确显示
+  u8g2.sendBuffer();
+}
+
+void loop() {}
