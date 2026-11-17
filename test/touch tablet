@@ -1,0 +1,19 @@
+## 测试触摸板
+
+#define TOUCH_PIN 2
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TOUCH_PIN, INPUT); // 默认状态下触摸输出高电平
+}
+
+void loop() {
+  int touchState = digitalRead(TOUCH_PIN);
+  
+  if (touchState == HIGH) {
+    Serial.println("摸到了！");
+  } else {
+    Serial.println("没摸...");
+  }
+  delay(100); // 简单消抖
+}
