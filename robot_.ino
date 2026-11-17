@@ -1,0 +1,149 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <ESP32Servo.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// 引脚定义（根据你的实际接线检查）
+#define I2C_SDA 5
+#define I2C_SCL 6
+#define TOUCH_PIN 2
+#define IR_LEFT_PIN 4
+#define IR_RIGHT_PIN 10
+#define SERVO_PAN_PIN 0
+#define SERVO_TILT_PIN 1
+
+Servo servoPan, servoTilt;
+unsigned long lastBlinkTime = 0;
+
+// --- 新增变量：用于平滑追踪 ---
+int currentPan = 90;  // 水平舵机当前真实角度
+int currentTilt = 90; // 竖直舵机当前真实角度
+int targetPan = 90;   // 水平舵机目标角度
+int targetTilt = 90;  // 竖直舵机目标角度
+
+void setup() {
+  Serial.begin(115200);
+  
+  Wire.begin(I2C_SDA, I2C_SCL);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { for (;;); }
+
+  pinMode(TOUCH_PIN, INPUT);
+  pinMode(IR_LEFT_PIN, INPUT);
+  pinMode(IR_RIGHT_PIN, INPUT);
+
+  servoPan.attach(SERVO_PAN_PIN, 500, 2400);
+  servoTilt.attach(SERVO_TILT_PIN, 500, 2400);
+  servoPan.write(currentPan);
+  servoTilt.write(currentTilt);
+}
+
+void loop() {
+  bool isTouched = (digitalRead(TOUCH_PIN) == HIGH); 
+  bool leftIR = (digitalRead(IR_LEFT_PIN) == LOW);  
+  bool rightIR = (digitalRead(IR_RIGHT_PIN) == LOW);
+
+  // --- 优先级1: 摸头 (开心笑眼) ---
+  if (isTouched) {
+    drawHappyEyes();
+    // 摸头时的温柔摇头
+    for (int pos = 80; pos <= 100; pos += 1) { servoPan.write(pos); delay(30); }
+    for (int pos = 100; pos >= 80; pos -= 1) { servoPan.write(pos); delay(30); }
+    
+    // 同步当前角度变量，防止摇头完后追踪错乱
+    currentPan = 90; 
+    targetPan = 90;
+    lastBlinkTime = millis(); 
+    return; 
+  }
+
+  // --- 优先级2: 追手 (设定目标角度) ---
+  if (leftIR || rightIR) {
+    drawTrackEyes(leftIR);
+    
+    // 这里不再直接 write，而是只设定“目标”是多少
+    if (leftIR) { 
+      targetPan = 135; 
+      targetTilt = 110; // 抬头幅度稍微减小一点
+    } 
+    else if (rightIR) { 
+      targetPan = 45; 
+      targetTilt = 110; 
+    }
+    
+    lastBlinkTime = millis();
+  } 
+  // --- 优先级3: 待机 ---
+  else {
+    // 待机时，目标角度回到正中间
+    targetPan = 90;
+    targetTilt = 90;
+    
+    if (millis() - lastBlinkTime > random(3000, 5000)) {
+      blinkAnimation();
+      lastBlinkTime = millis();
+    }
+  }
+
+  // ==========================================
+  // 【核心修改点】：让舵机平滑地“追”向目标
+  // ==========================================
+  // 如果当前角度小于目标角度，就慢慢加
+  if (currentPan < targetPan) currentPan += 1;
+  else if (currentPan > targetPan) currentPan -= 1;
+  
+  if (currentTilt < targetTilt) currentTilt += 1;
+  else if (currentTilt > targetTilt) currentTilt -= 1;
+
+  servoPan.write(currentPan);
+  servoTilt.write(currentTilt);
+  
+  // delay(15) 决定了追踪的速度。
+  // 数字越大，追踪越慢。如果觉得还快，可以改到 20 或 25。
+  delay(15); 
+}
+
+// ==========================================
+// 核心绘图函数（保持之前的完美版本）
+// ==========================================
+void drawIdleEyes() {
+  display.clearDisplay();
+  display.drawCircle(40, 32, 16, WHITE); 
+  display.drawCircle(88, 32, 16, WHITE); 
+  display.display();
+}
+
+void blinkAnimation() {
+  drawIdleEyes();
+  delay(80);
+  display.clearDisplay();
+  display.drawFastHLine(24, 32, 32, WHITE); 
+  display.drawFastHLine(72, 32, 32, WHITE); 
+  display.display();
+  delay(120);
+  drawIdleEyes();
+}
+
+void drawHappyEyes() {
+  display.clearDisplay();
+  display.drawLine(26, 40, 40, 24, WHITE);
+  display.drawLine(40, 24, 54, 40, WHITE);
+  display.drawLine(74, 40, 88, 24, WHITE);
+  display.drawLine(88, 24, 102, 40, WHITE);
+  display.display();
+}
+
+void drawTrackEyes(bool lookLeft) {
+  display.clearDisplay();
+  if (lookLeft) {
+    display.drawCircle(32, 32, 16, WHITE); 
+    display.drawCircle(80, 32, 16, WHITE); 
+  } else {
+    display.drawCircle(48, 32, 16, WHITE); 
+    display.drawCircle(96, 32, 16, WHITE); 
+  }
+  display.display();
+}
