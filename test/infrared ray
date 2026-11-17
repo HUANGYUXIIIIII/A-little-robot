@@ -1,0 +1,21 @@
+## 测试红外避障
+
+#define IR_LEFT_PIN 4
+#define IR_RIGHT_PIN 10
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(IR_LEFT_PIN, INPUT);
+  pinMode(IR_RIGHT_PIN, INPUT);
+  Serial.println("IR Sensor Test Start");
+}
+
+void loop() {
+  int leftState = digitalRead(IR_LEFT_PIN);
+  int rightState = digitalRead(IR_RIGHT_PIN);
+  
+  Serial.print("Left: "); Serial.print(leftState);
+  Serial.print(" | Right: "); Serial.println(rightState);
+  
+  delay(200);
+}
